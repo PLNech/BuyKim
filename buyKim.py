@@ -20,7 +20,7 @@ step1_filename = screen_prefix + " - step1.png"
 step2_filename = screen_prefix + " - step2.png"
 step3_filename = screen_prefix + " - step3.png"
 
-ref_product = "150sk20" if DEBUG else "150sk22"
+ref_product = "150sk22" if DEBUG else "150sk20"
 ovh_user = os.environ["OVH_USERNAME"]
 ovh_pass = os.environ["OVH_PASSWORD"]
 
@@ -30,8 +30,8 @@ driver = webdriver.Firefox()
 available = False
 while not available:
     available = True
-    # driver.get("https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=" + ref_product + "&quantity=1")
-    driver.get("https://eu.soyoustart.com/fr/commande/soYouStart.xml?reference=143sys2&quantity=1")
+    # driver.get("https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=" + ref_product)
+    driver.get("https://eu.soyoustart.com/fr/commande/soYouStart.xml?reference=143sys2")
     try:
         # assert "Kimsufi" in driver.title
         zoom_out(driver)
