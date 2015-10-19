@@ -18,9 +18,18 @@ ref_product = "150sk22" if DEBUG else "150sk20"
 ref_zone = "gra" if DEBUG else "bhs"
 not_available_terms = ['unknown', 'unavailable']
 
+time_run = datetime.now().strftime("%y-%m-%d %H-%M-%f")
+screenshot_dir = os.getenv("SCREENSHOT_DIR", os.path.abspath("screens")) + "\\"
+print("Saving screenshots in %s" % screenshot_dir)
+screen_prefix = screenshot_dir + time_run
+
+ovh_user = os.environ["OVH_USERNAME"]
+ovh_pass = os.environ["OVH_PASSWORD"]
+print("Loaded environment: Connecting as %s with password %s..." % (ovh_user, ovh_pass[:5]))
+
 available = False
 while not available:
-    print("Requesting...", flush=True, end=' ')
+    print("%s | Requesting... " % datetime.now().strftime("%y/%m/%d %H:%M:%S"), flush=True, end=' ')
     request_ws = requests.get("https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2")
     data = request_ws.json()
 
@@ -52,16 +61,6 @@ while not available:
     else:
         print("No answer in ws data.")
 print("Exited availability loop, %s is available in %s!" % (ref_product, ref_zone))
-
-time_run = datetime.now().strftime("%y-%m-%d %H-%m-%f")
-screenshot_dir = os.getenv("SCREENSHOT_DIR", os.path.abspath("screens")) + "\\"
-print("Saving screenshots in %s" % screenshot_dir)
-screen_prefix = screenshot_dir + time_run
-
-ovh_user = os.environ["OVH_USERNAME"]
-ovh_pass = os.environ["OVH_PASSWORD"]
-
-print("Loaded environment: Connecting as %s with password %s..." % (ovh_user, ovh_pass[:5]))
 
 driver = webdriver.Firefox()
 driver.maximize_window()
@@ -141,6 +140,7 @@ if not DEBUG:
 
 # Wait to realise what you've done
 screenshot_step(driver, screen_prefix, 4)
-time.sleep(10)
+time.sleep(30)
+screenshot_step(driver, screen_prefix, 5)
 if DEBUG:
     driver.close()
