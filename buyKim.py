@@ -135,11 +135,9 @@ driver.find_element_by_css_selector(css_input_cgv).click()
 driver.find_element_by_css_selector(css_input_custom).click()
 print("Checked confirmation inputs.")
 
+# uncommented after numerous tests
 if not DEBUG:
-    # BIG RED BUTTON! DON'T UNCOMMENT UNTIL YOU ARE DAMN SURE
-    # driver.find_element_by_css_selector(css_input_cgv).click()
-    pass
-
+    driver.find_element_by_css_selector(css_input_cgv).click()
 
 # Wait to realise what you've done
 screenshot_step(driver, screen_prefix, 4)
