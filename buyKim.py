@@ -146,7 +146,7 @@ print("Checked confirmation inputs.")
 
 # uncommented after numerous tests
 if not DEBUG:
-    driver.find_element_by_css_selector(css_input_cgv).click()
+    driver.find_element_by_css_selector(css_button_purchase).click()
 
 # Wait to realise what you've done
 screenshot_step(driver, screen_prefix, 4)
