@@ -1,9 +1,9 @@
 from datetime import datetime
-import os
 import time
+import os
+import requests
 
 from selenium import webdriver
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -11,6 +11,47 @@ from selenium.webdriver.support import expected_conditions as EC
 from utils import zoom_out
 
 DEBUG = True
+
+# ref_product = "143sys2"
+ref_product = "150sk22" if DEBUG else "150sk20"
+ref_zone = "gra" if DEBUG else "bhs"
+not_available_terms = ['unknown', 'unavailable']
+
+available = False
+while not available:
+    print("Requesting...", flush=True, end=' ')
+    request_ws = requests.get("https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2")
+    data = request_ws.json()
+
+    available_servers = data['answer']['availability']
+    if 'answer' in data:
+        if 'availability' in data['answer']:
+            found_product = False
+            for line in available_servers:
+                if line['reference'] == ref_product:
+                    found_product = True
+
+                    found_zone = False
+                    for zone in line['zones']:
+                        if zone['zone'] == ref_zone:
+                            found_zone = True
+                            availability = zone['availability']
+                            available = availability not in not_available_terms
+                            available_status = ("" if available else "not ") + "available"
+                            print('Model %s in dc %s is marked as %s -> %s' % (
+                                ref_product, ref_zone, availability, available_status))
+                            if available:
+                                break
+                            else:
+                                continue
+                    if not found_zone:
+                        print("Zone %s was not found in data about product %s." % (ref_zone, ref_product))
+            if not found_product:
+                print("No data about product %s." % ref_product)
+    else:
+        print("No answer in ws data.")
+print("Exited availability loop, %s is available in %s!" % (ref_product, ref_zone))
+
 
 time_run = datetime.now().strftime("%y-%m-%d %H-%m-%f")
 screenshot_dir = os.getenv("SCREENSHOT_DIR", os.path.abspath("screens")) + "\\"
@@ -21,32 +62,30 @@ step1_filename = screen_prefix + " - step1.png"
 step2_filename = screen_prefix + " - step2.png"
 step3_filename = screen_prefix + " - step3.png"
 
-ref_product = "150sk22" if DEBUG else "150sk20"
 ovh_user = os.environ["OVH_USERNAME"]
 ovh_pass = os.environ["OVH_PASSWORD"]
 
 print("Loaded environment: Connecting as %s with password %s..." % (ovh_user, ovh_pass[:5]))
 
 driver = webdriver.Firefox()
+driver.maximize_window()
 available = False
-while not available:
-    available = True
-    # driver.get("https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=" + ref_product)
-    driver.get("https://eu.soyoustart.com/fr/commande/soYouStart.xml?reference=143sys2")
-    try:
-        # assert "Kimsufi" in driver.title
-        zoom_out(driver)
-        # Wait for the removal of waiting banner...
-        WebDriverWait(driver, 10).until_not(EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "div.fixed-header div.alert.alert-info.ng-scope")))
-        print("Page finished loading.")
-    except AssertionError:
-        print("The page didn't load correctly.")
+driver.get("https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=" + ref_product)
+# driver.get("https://eu.soyoustart.com/fr/commande/soYouStart.xml?reference=143sys2")
+try:
+    # assert "Kimsufi" in driver.title
+    zoom_out(driver)
+    # Wait for the removal of waiting banner...
+    WebDriverWait(driver, 10).until_not(EC.presence_of_element_located(
+        (By.CSS_SELECTOR, "div.fixed-header div.alert.alert-info.ng-scope")))
+    print("Page finished loading.")
+except AssertionError:
+    print("The page didn't load correctly.")
 
-        # if driver.find_element_by_class_name("alert-error") is None:
-        #     available = True
+    # if driver.find_element_by_class_name("alert-error") is None:
+    #     available = True
 
-js_select_dhs = """var appDom = document.querySelector('#dc-bhs');
+js_select_dhs = """var appDom = document.querySelector('#quantity-1');
 var appNg = angular.element(appDom);
 var scope = appNg.scope();
 scope.config.datacenter = 'bhs';
@@ -108,7 +147,7 @@ if not DEBUG:
 
 
 # Wait to realise what you've done
-driver.implicitly_wait(15)
 driver.save_screenshot(step3_filename)
+time.sleep(10)
 if DEBUG:
     driver.close()
