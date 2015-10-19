@@ -10,6 +10,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from utils import zoom_out, screenshot_step
 
+MIN_REQ_INTERVAL = 5  # Minimum interval between two requests
 DEBUG = True
 
 page_title = "Kimsufi"  # "So you Start"
@@ -29,7 +30,10 @@ print("Loaded environment: Connecting as %s with password %s..." % (ovh_user, ov
 
 available = False
 while not available:
-    print("%s | Requesting... " % datetime.now().strftime("%y/%m/%d %H:%M:%S"), flush=True, end=' ')
+    time_start = time.time()
+    time_elapsed = 0
+    time_run_str = datetime.now().strftime("%y/%m/%d %H:%M:%S")
+    print("%s | Requesting... " % time_run_str, flush=True, end=' ')
     request_ws = requests.get("https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2")
     data = request_ws.json()
 
@@ -49,10 +53,16 @@ while not available:
                             available = availability not in not_available_terms
                             available_status = ("" if available else "not ") + "available"
                             print('Model %s in dc %s is marked as %s -> %s' % (
-                                ref_product, ref_zone, availability, available_status))
+                                ref_product, ref_zone, availability, available_status), end="")
                             if available:
                                 break
                             else:
+                                while time_elapsed < MIN_REQ_INTERVAL:
+                                    time_end = time.time()
+                                    time_elapsed = time_end - time_start
+                                    time.sleep(1)
+                                print(" (time: %f)" % time_elapsed)
+
                                 continue
                     if not found_zone:
                         print("Zone %s was not found in data about product %s." % (ref_zone, ref_product))
