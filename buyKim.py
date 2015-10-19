@@ -7,6 +7,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
 from utils import zoom_out
 
 DEBUG = True
@@ -35,34 +36,26 @@ while not available:
     try:
         # assert "Kimsufi" in driver.title
         zoom_out(driver)
+        # Wait for the removal of waiting banner...
         WebDriverWait(driver, 10).until_not(EC.presence_of_element_located(
             (By.CSS_SELECTOR, "div.fixed-header div.alert.alert-info.ng-scope")))
         print("Page finished loading.")
     except AssertionError:
         print("The page didn't load correctly.")
 
-    # if driver.find_element_by_class_name("alert-error") is None:
-    #     available = True
+        # if driver.find_element_by_class_name("alert-error") is None:
+        #     available = True
 
-css_dc_header = "div.dedicated-configuration-and-resume tr.editable.last td.first label"
-css_dc_fr = "input#dc-default"
-css_dc_bhs = "input#dc-bhs"
-# header_dc = driver.find_element_by_css_selector(css_dc_bhs)
-selector_dc = driver.find_element_by_css_selector(css_dc_bhs)
+js_select_dhs = """var appDom = document.querySelector('#dc-bhs');
+var appNg = angular.element(appDom);
+var scope = appNg.scope();
+scope.config.datacenter = 'bhs';
+scope.$apply();
+"""
 
-ActionChains(driver).move_to_element(selector_dc).perform()
-print("Moved to DC header.")
-time.sleep(1)
-selector_dc.click()
-time.sleep(1)
-selector_dc = driver.find_element_by_css_selector(css_dc_fr)
-selector_dc.click()
-time.sleep(1)
-selector_dc = driver.find_element_by_css_selector(css_dc_bhs)
-selector_dc.click()
-time.sleep(3)
-print("Clicked on canadian datacenter.")
-# FIXME: How can I activate this input?
+print("Executing select script: `%s`." % js_select_dhs)
+driver.execute_script(js_select_dhs)
+print("Selected canadian datacenter.")
 
 css_label_existing = "span.existing label"
 css_button_login = "div.customer-existing form span.last.ec-button span button"
@@ -79,7 +72,7 @@ print("Clicked on existing customer.")
 
 driver.execute_script("arguments[0].scrollIntoView(true);", button_existing)
 driver.save_screenshot(step1_filename)
-# Wait for page reaction, then locate login inputs
+# Locate login inputs
 input_login = driver.find_element_by_id(id_input_login)
 input_pass = driver.find_element_by_id(id_input_pass)
 
