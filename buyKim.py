@@ -1,14 +1,14 @@
 from datetime import datetime
 import time
 import os
-import requests
 
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from utils import zoom_out
+from utils import zoom_out, screenshot_step
 
 DEBUG = True
 
@@ -53,15 +53,10 @@ while not available:
         print("No answer in ws data.")
 print("Exited availability loop, %s is available in %s!" % (ref_product, ref_zone))
 
-
 time_run = datetime.now().strftime("%y-%m-%d %H-%m-%f")
 screenshot_dir = os.getenv("SCREENSHOT_DIR", os.path.abspath("screens")) + "\\"
 print("Saving screenshots in %s" % screenshot_dir)
 screen_prefix = screenshot_dir + time_run
-
-step1_filename = screen_prefix + " - step1.png"
-step2_filename = screen_prefix + " - step2.png"
-step3_filename = screen_prefix + " - step3.png"
 
 ovh_user = os.environ["OVH_USERNAME"]
 ovh_pass = os.environ["OVH_PASSWORD"]
@@ -110,8 +105,9 @@ print("Button found: ", button_existing)
 button_existing.click()
 print("Clicked on existing customer.")
 
+screenshot_step(driver, screen_prefix, 1)
 driver.execute_script("arguments[0].scrollIntoView(true);", button_existing)
-driver.save_screenshot(step1_filename)
+screenshot_step(driver, screen_prefix, 2)
 # Locate login inputs
 input_login = driver.find_element_by_id(id_input_login)
 input_pass = driver.find_element_by_id(id_input_pass)
@@ -122,10 +118,8 @@ input_pass.send_keys(ovh_pass)
 print("Wrote username and password into inputs.")
 driver.find_element_by_css_selector(css_button_login).click()
 print("Clicked on login button.")
-retval = driver.save_screenshot(step2_filename)
-print("Saving screenshot 2 as %s..." % step2_filename,
-      "Success" if retval else "Error")
 
+screenshot_step(driver, screen_prefix, 3)
 
 # Wait for means of payment to load
 css_payment_valid = "div.payment-means-choice div.payment-means-list form span.selected input.custom-radio.ng-valid"
@@ -148,7 +142,7 @@ if not DEBUG:
 
 
 # Wait to realise what you've done
-driver.save_screenshot(step3_filename)
+screenshot_step(driver, screen_prefix, 4)
 time.sleep(10)
 if DEBUG:
     driver.close()
