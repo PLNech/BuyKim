@@ -14,5 +14,5 @@ def zoom_out(driver):
 def screenshot_step(driver, screen_prefix, step_number):
     step_filename = screen_prefix + " - step%d.png" % step_number
     retval = driver.save_screenshot(step_filename)
-    print("Saving screenshot 2 as %s..." % step_filename,
+    print("Saving screenshot %d as %s..." % (step_number, step_filename),
           "Success" if retval else "Error")
