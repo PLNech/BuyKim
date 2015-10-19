@@ -12,6 +12,7 @@ from utils import zoom_out
 
 DEBUG = True
 
+page_title = "Kimsufi"  # "So you Start"
 # ref_product = "143sys2"
 ref_product = "150sk22" if DEBUG else "150sk20"
 ref_zone = "gra" if DEBUG else "bhs"
@@ -73,14 +74,14 @@ available = False
 driver.get("https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=" + ref_product)
 # driver.get("https://eu.soyoustart.com/fr/commande/soYouStart.xml?reference=143sys2")
 try:
-    # assert "Kimsufi" in driver.title
+    assert page_title in driver.title
     zoom_out(driver)
     # Wait for the removal of waiting banner...
     WebDriverWait(driver, 10).until_not(EC.presence_of_element_located(
         (By.CSS_SELECTOR, "div.fixed-header div.alert.alert-info.ng-scope")))
     print("Page finished loading.")
 except AssertionError:
-    print("The page didn't load correctly.")
+    print("The page didn't load correctly: " + driver.title)
 
     # if driver.find_element_by_class_name("alert-error") is None:
     #     available = True
@@ -88,7 +89,7 @@ except AssertionError:
 js_select_dhs = """var appDom = document.querySelector('#quantity-1');
 var appNg = angular.element(appDom);
 var scope = appNg.scope();
-scope.config.datacenter = 'bhs';
+scope.config.datacenter = '""" + ref_zone + """';
 scope.$apply();
 """
 
