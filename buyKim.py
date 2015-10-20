@@ -20,7 +20,7 @@ def print_and_log(message, level=logging.DEBUG, sep=' ', end='\n', flush=False):
 MAX_REQ_TIMEOUT_READ = None
 
 MAX_REQ_TIMEOUT_CONN = 5  # Maximum time in seconds to wait for webservice answer
-MIN_REQ_INTERVAL = 8  # Minimum interval in seconds between two requests
+MIN_REQ_INTERVAL = 7.5  # Minimum interval in seconds between two requests (7.5 s.req = 480 req/h < 500 req/h)
 DEBUG = False
 
 page_title = "Kimsufi"  # "So you Start"
@@ -48,6 +48,7 @@ print_and_log("Loaded environment: Connecting as %s with password %s..." % (ovh_
 data = ""
 available = False
 while not available:
+    success = False
     time_start = time.time()
     time_elapsed = 0
     time_run_str = datetime.now().strftime("%y/%m/%d %H:%M:%S")
@@ -69,6 +70,7 @@ while not available:
                         for zone in line['zones']:
                             if zone['zone'] == ref_zone:
                                 found_zone = True
+                                success = True
                                 availability = zone['availability']
                                 available = availability not in not_available_terms
                                 available_status = ("" if available else "not ") + "available"
@@ -78,15 +80,6 @@ while not available:
                                 print(msg_model, end="")
                                 if available:
                                     break
-                                else:
-                                    while time_elapsed < MIN_REQ_INTERVAL:
-                                        time_end = time.time()
-                                        time_elapsed = time_end - time_start
-                                        time.sleep(1)
-                                    msg_time = " (time: %f)" % time_elapsed
-                                    print(msg_time)
-                                    logging.log(logging.DEBUG, log_msg + msg_time)
-                                    continue
                         if not found_zone:
                             print_and_log("Zone %s was not found in data about product %s." % (ref_zone, ref_product))
                 if not found_product:
@@ -97,6 +90,15 @@ while not available:
         print_and_log("Timeout while fetching webservice.")
     except Exception as e:
         print_and_log(str(type(e)) + " while parsing: " + str(e.args) + ' | ' + "Data: " + str(data))
+
+    while time_elapsed < MIN_REQ_INTERVAL:
+        time_end = time.time()
+        time_elapsed = time_end - time_start
+        time.sleep(1)
+    msg_time = " (time: %f)" % time_elapsed
+    if success:
+        print(msg_time)
+    logging.log(logging.DEBUG, log_msg + msg_time)
 
 print_and_log("Exited availability loop, %s is available in %s!" % (ref_product, ref_zone))
 
