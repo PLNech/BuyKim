@@ -96,7 +96,7 @@ while not available:
     except TimeoutError:
         print_and_log("Timeout while fetching webservice.")
     except Exception as e:
-        print_and_log(str(type(e)) + " while parsing: ", str(e.args), ' | ' + "Data: ", data)
+        print_and_log(str(type(e)) + " while parsing: " + str(e.args) + ' | ' + "Data: " + str(data))
 
 print_and_log("Exited availability loop, %s is available in %s!" % (ref_product, ref_zone))
 
