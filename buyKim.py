@@ -21,7 +21,7 @@ MAX_REQ_TIMEOUT_READ = None
 
 MAX_REQ_TIMEOUT_CONN = 5  # Maximum time in seconds to wait for webservice answer
 MIN_REQ_INTERVAL = 5  # Minimum interval in seconds between two requests
-DEBUG = False
+DEBUG = True
 
 page_title = "Kimsufi"  # "So you Start"
 # ref_product = "143sys2"
@@ -31,9 +31,15 @@ url_availability = "https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailabilit
 not_available_terms = ['unknown', 'unavailable']
 
 time_run = datetime.now().strftime("%y-%m-%d %H-%M-%f")
+
 screenshot_dir = os.getenv("SCREENSHOT_DIR", os.path.abspath("screens")) + "\\"
-log_dir = os.getenv("LOG_DIR", "")
+log_dir = os.getenv("LOG_DIR", os.getcwd())
+if not os.path.exists(screenshot_dir):
+    os.makedirs(screenshot_dir)
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
 log_filename = os.path.join(log_dir, "buyKim.log")
+
 print("Log filename: %s" % log_filename)
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', filename=log_filename, level=logging.DEBUG)
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -73,7 +79,7 @@ while not available:
                                 available = availability not in not_available_terms
                                 available_status = ("" if available else "not ") + "available"
                                 msg_model = 'Model %s in dc %s is marked as %s -> %s' % (
-                                ref_product, ref_zone, availability, available_status)
+                                    ref_product, ref_zone, availability, available_status)
                                 log_msg += msg_model
                                 print(msg_model, end="")
                                 if available:
@@ -137,8 +143,7 @@ id_input_pass = "existing-customer-password"
 
 # Check existing customer
 button_existing = driver.find_element_by_css_selector(css_label_existing)
-print_and_log("Button found: ", button_existing)
-
+print_and_log("Button found: " + str(button_existing))
 button_existing.click()
 print_and_log("Clicked on existing customer.")
 
