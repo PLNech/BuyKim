@@ -20,7 +20,7 @@ def print_and_log(message, level=logging.DEBUG, sep=' ', end='\n', flush=False):
 MAX_REQ_TIMEOUT_READ = None
 
 MAX_REQ_TIMEOUT_CONN = 5  # Maximum time in seconds to wait for webservice answer
-MIN_REQ_INTERVAL = 5  # Minimum interval in seconds between two requests
+MIN_REQ_INTERVAL = 8  # Minimum interval in seconds between two requests
 DEBUG = False
 
 page_title = "Kimsufi"  # "So you Start"
