@@ -2,8 +2,10 @@ from datetime import datetime
 import time
 import os
 import logging
+import traceback
 
 import requests
+from requests.packages.urllib3.exceptions import MaxRetryError
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -96,7 +98,10 @@ while not available:
         print_and_log("Timeout while fetching webservice.")
     except Exception as e:
         print_and_log(str(type(e)) + " while parsing: " + str(e.args) + ' | ' + "Data: " + str(data))
-
+        with open(log_filename, mode='a') as f:
+            f.write("\n" + "-" * 60)
+            traceback.print_exc(file=f)
+            f.write("-" * 60 + "\n")
     while time_elapsed < MIN_REQ_INTERVAL:
         time_end = time.time()
         time_elapsed = time_end - time_start
