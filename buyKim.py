@@ -5,7 +5,6 @@ import logging
 import traceback
 
 import requests
-from requests.packages.urllib3.exceptions import MaxRetryError
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -75,19 +74,26 @@ while not available:
                         found_product = True
 
                         found_zone = False
+                        msg_model = ""
+                        msg_zones = "zones:"
+                        zone_avails = []
                         for zone in line['zones']:
-                            if zone['zone'] == ref_zone:
+                            availability = zone['availability']
+                            zone_name = zone['zone']
+                            zone_avails.append(zone_name + "=" + availability)
+                            if zone_name == ref_zone:
                                 found_zone = True
                                 success = True
-                                availability = zone['availability']
                                 available = availability not in not_available_terms
                                 available_status = ("" if available else "not ") + "available"
                                 msg_model = 'Model %s in dc %s is marked as %s -> %s' % (
                                     ref_product, ref_zone, availability, available_status)
                                 log_msg += msg_model
-                                print(msg_model, end="")
                                 if available:
+                                    print(msg_model, end="")
                                     break
+                                print("%s (%s)" % (msg_model, ", ".join(zone_avails)), end="")
+
                         if not found_zone:
                             print_and_log("Zone %s was not found in data about product %s." % (ref_zone, ref_product))
                 if not found_product:
