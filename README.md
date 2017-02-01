@@ -1,9 +1,9 @@
 # BuyKim
-A script to automate Kimsufi (and other OVH servers) purchase
+*A script to automate Kimsufi (and other OVH servers) purchase*
 
 # Rationale
 Recently I wanted to purchase a Kimsufi server. However, I was not
-the only one to want one and that OVH has no queuing mechanim, leaving
+the only one to want one and OVH has no queuing mechanim, leaving
 me the only option of reloading the availability page waiting for an 
 opportunity to rent one.
 
