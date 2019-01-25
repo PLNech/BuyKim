@@ -9,6 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 import click
 
 from utils import zoom_out, screenshot_step
@@ -22,15 +23,25 @@ def print_and_log(message, level=logging.INFO, sep=' ', end='\n', flush=False):
 @click.command()
 @click.option('--timeout-conn', '-t', default=5, show_default=True, help='Maximum time in seconds to wait for webservice answer.')
 @click.option('--interval', '-i', default=7.5, show_default=True, help='Minimum interval in seconds between two requests')
-@click.option('--product-family', '-f', default="Kimsufi", show_default=True, help='The family of servers (ie. "Kimsufi"/"So you Start")')
+@click.option('--product-family', default="Kimsufi", show_default=True, help='The family of servers (ie. "Kimsufi"/"So you Start")')
 @click.option('--ref-product', '-p', default="1801sk12", show_default=True, help='Reference of the server (ie 1801sk12 for KS1, 1801sys29 for some soYouStart servers')
 @click.option('--ref-zones', '-z', default=["gra","rbx","lon","fra"], show_default=True, multiple=True, help='Data center short name(s) (ie "-z gra -z rbx")')
+@click.option('--quantity', '-q', default=1, show_default=True, help='Number of servers to rent - 1 to 5 (Maximum)')
+@click.option('--payment-frequency', '-f', default=1, show_default=True, help='Receive the bill every 1,3,6 or 12 month')
 @click.option('--ovh-user', prompt=True, hide_input=False)
 @click.option('--ovh-pass', prompt=True, hide_input=True)
 @click.option('--debug/--no-debug', default=False, help='Debug mode, disable by default. Add --debug flag to enable')
-def main(timeout_conn, interval, product_family, ref_product, ref_zones, ovh_user, ovh_pass, debug):
-    MAX_REQ_TIMEOUT_READ = None
+def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantity, payment_frequency, ovh_user, ovh_pass, debug):
 
+    # Check input is correct
+    possible_payment_frequency = [1,3,6,12]
+    if payment_frequency not in possible_payment_frequency:
+        raise IOError('Error: possible choices for the billing frequency are 1,3,6 or 12 months. You entered "--payment-frequency {}"'.format(payment_frequency))
+    if quantity not in [1,2,3,4,5]:
+        raise IOError('Error: It is only possible to order 1 to 5 at once. You entered "--quantity {}"'.format(quantity))
+
+    # define constants
+    MAX_REQ_TIMEOUT_READ = None
     url_availability = "https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2"
     not_available_terms = ['unknown', 'unavailable']
 
@@ -136,13 +147,30 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, ovh_use
     js_select_dhs = """var appDom = document.querySelector('#quantity-1');
     var appNg = angular.element(appDom);
     var scope = appNg.scope();
-    scope.config.datacenter = '""" + found_zone + """';
+    scope.config.datacenter = '{}';
     scope.$apply();
-    """
+    """.format(found_zone)
 
-    print_and_log("Executing select script: `%s`." % js_select_dhs)
+    print_and_log("""Executing select script:
+    {}
+    """.format(js_select_dhs))
     driver.execute_script(js_select_dhs)
-    print_and_log("Selected canadian datacenter.")
+    print_and_log("Selected {} datacenter.".format(found_zone))
+
+    # Select quantity and payment options
+    selecor_quantity_line = driver.find_element_by_css_selector('tbody.configuration tr:nth-child(2)')
+    selector_quantity = driver.find_element_by_css_selector('tbody.configuration tr:nth-child(2) li:nth-child({})'.format(quantity))
+    Hover = ActionChains(driver).move_to_element(selecor_quantity_line).move_to_element(selector_quantity)
+    Hover.click().perform()
+    print_and_log("Selected to rent {} servers.".format(quantity))
+
+    # possible_payment_frequency index + 1 gives the option number to pick
+    option = possible_payment_frequency.index(payment_frequency) + 1
+    selecor_frequency_line = driver.find_element_by_css_selector('tbody.configuration tr:nth-child(3)')
+    selector_frequency = driver.find_element_by_css_selector('tbody.configuration tr:nth-child(3) li:nth-child({})'.format(option))
+    Hover = ActionChains(driver).move_to_element(selecor_frequency_line).move_to_element(selector_frequency)
+    Hover.click().perform()
+    print_and_log("Selected to rent servers for {} months.".format(payment_frequency))
 
     css_label_existing = "span.existing label"
     css_button_login = "div.customer-existing form span.last.ec-button span button"
