@@ -4,7 +4,7 @@
 # Rationale
 Recently I wanted to purchase a Kimsufi server. However, I was not
 the only one to want one and OVH has no queuing mechanim, leaving
-me the only option of reloading the availability page waiting for an 
+me the only option of reloading the availability page waiting for an
 opportunity to rent one.
 
 Pretty quickly, I came up with this script: an **automated tool** to
@@ -14,21 +14,50 @@ wasting your precious time waiting!
 # Usage
 
 - Install requirements: `pip install -r requirements.txt`
+
+- One of the dependency is `Selenium` that depends on drivers: https://github.com/SeleniumHQ/selenium/blob/master/py/docs/source/index.rst#user-content-drivers.
+
+On Mac to make this step easier, run:
+```
+brew install geckodriver
+```
+
 - Connect your OVH account to PayPal (this seemed the best option to avoid handling Credit Card data, but PR welcome if you want to do otherwise!)
-- Set the environment variables `OVH_USERNAME` and `OVH_PASSWORD` (they are used to automate the purchase itself)
-- Set `ref_product` to the product you want (default: `150sk22`) and `ref_zone` to the zone you want to rent it in (default: `bhs`, Beauharnois datacenter)
+
 - Run `python buyKim.py`
-- ???
+```
+$ python buyKim.py --help
+Usage: buyKim.py [OPTIONS]
+
+Options:
+  -t, --timeout-conn INTEGER  Maximum time in seconds to wait for webservice
+                              answer.  [default: 5]
+  -i, --interval FLOAT        Minimum interval in seconds between two requests
+                              [default: 7.5]
+  -f, --product-family TEXT   The family of servers (ie. "Kimsufi"/"So you
+                              Start")  [default: Kimsufi]
+  -p, --ref-product TEXT      Reference of the server (ie 1801sk12 for KS1,
+                              1801sys29 for some soYouStart servers  [default:
+                              1801sk12]
+  -z, --ref-zones TEXT        Data center short name(s) (ie "-z gra -z rbx")
+                              [default: gra, rbx, lon, fra]
+  --ovh-user TEXT
+  --ovh-pass TEXT
+  --debug / --no-debug        Debug mode, disable by default. Add --debug flag
+                              to enable
+  --help                      Show this message and exit.
+```
+
 - Profit!
 
 # Architecture
 
 The script is split in two parts:  
 
-- The first part uses `requests` to poll OVH's availability webservice, 
-and parses its response to find the product you want. When the response 
+- The first part uses `requests` to poll OVH's availability webservice,
+and parses its response to find the product you want. When the response
 describes your product as available, the second part of the script kicks in.
-- The second part uses `selenium` for opening the listing page, then selects 
+- The second part uses `selenium` for opening the listing page, then selects
 your product, injects some Angular.JS-specific JavaScript for selecting your
 datacenter, waits for PayPal to load, and clicks on Purchase!
 

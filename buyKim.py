@@ -9,195 +9,195 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import click
 
 from utils import zoom_out, screenshot_step
 
 
-def print_and_log(message, level=logging.DEBUG, sep=' ', end='\n', flush=False):
+def print_and_log(message, level=logging.INFO, sep=' ', end='\n', flush=False):
     print(message, sep=sep, end=end, flush=flush)
     logging.log(level, message)
 
 
-MAX_REQ_TIMEOUT_READ = None
+@click.command()
+@click.option('--timeout-conn', '-t', default=5, show_default=True, help='Maximum time in seconds to wait for webservice answer.')
+@click.option('--interval', '-i', default=7.5, show_default=True, help='Minimum interval in seconds between two requests')
+@click.option('--product-family', '-f', default="Kimsufi", show_default=True, help='The family of servers (ie. "Kimsufi"/"So you Start")')
+@click.option('--ref-product', '-p', default="1801sk12", show_default=True, help='Reference of the server (ie 1801sk12 for KS1, 1801sys29 for some soYouStart servers')
+@click.option('--ref-zones', '-z', default=["gra","rbx","lon","fra"], show_default=True, multiple=True, help='Data center short name(s) (ie "-z gra -z rbx")')
+@click.option('--ovh-user', prompt=True, hide_input=False)
+@click.option('--ovh-pass', prompt=True, hide_input=True)
+@click.option('--debug/--no-debug', default=False, help='Debug mode, disable by default. Add --debug flag to enable')
+def main(timeout_conn, interval, product_family, ref_product, ref_zones, ovh_user, ovh_pass, debug):
+    MAX_REQ_TIMEOUT_READ = None
 
-MAX_REQ_TIMEOUT_CONN = 5  # Maximum time in seconds to wait for webservice answer
-MIN_REQ_INTERVAL = 7.5  # Minimum interval in seconds between two requests (7.5 s.req = 480 req/h < 500 req/h)
-DEBUG = True
+    url_availability = "https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2"
+    not_available_terms = ['unknown', 'unavailable']
 
-page_title = "Kimsufi"  # "So you Start"
-# ref_product = "143sys2"
-ref_product = "150sk22" if DEBUG else "150sk20"
-ref_zone = "gra" if DEBUG else "bhs"
-url_availability = "https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2"
-not_available_terms = ['unknown', 'unavailable']
+    time_run = datetime.now().strftime("%y-%m-%d %H-%M-%f")
 
-time_run = datetime.now().strftime("%y-%m-%d %H-%M-%f")
+    screenshot_dir = os.getenv("SCREENSHOT_DIR", os.path.abspath("screens"))
+    log_dir = os.getenv("LOG_DIR", os.getcwd())
+    if not os.path.exists(screenshot_dir):
+        os.makedirs(screenshot_dir)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    log_filename = os.path.join(log_dir, "buyKim.log")
 
-screenshot_dir = os.getenv("SCREENSHOT_DIR", os.path.abspath("screens")) + "\\"
-log_dir = os.getenv("LOG_DIR", os.getcwd())
-if not os.path.exists(screenshot_dir):
-    os.makedirs(screenshot_dir)
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-log_filename = os.path.join(log_dir, "buyKim.log")
+    print("Log filename: {}".format(log_filename))
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', filename=log_filename, level=logging.DEBUG)
+    logging.getLogger("requests").setLevel(logging.WARNING)
 
-print("Log filename: %s" % log_filename)
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', filename=log_filename, level=logging.DEBUG)
-logging.getLogger("requests").setLevel(logging.WARNING)
+    print_and_log("Saving screenshots in {}".format(screenshot_dir))
+    screen_prefix = screenshot_dir + time_run
 
-print_and_log("Saving screenshots in %s" % screenshot_dir, logging.INFO)
-screen_prefix = screenshot_dir + time_run
+    available = False
+    while not available:
+        success = False
+        time_start = time.time()
+        time_elapsed = 0
+        time_run_str = datetime.now().strftime("%y/%m/%d %H:%M:%S")
+        log_msg = "Requesting... "
+        print("{} | {} ".format(time_run_str, log_msg), flush=True)
+        try:
+            request_ws = requests.get(url_availability, timeout=(timeout_conn, MAX_REQ_TIMEOUT_READ))
+            data = request_ws.json()
 
-ovh_user = os.environ["OVH_USERNAME"]
-ovh_pass = os.environ["OVH_PASSWORD"]
-print_and_log("Loaded environment: Connecting as %s with password %s..." % (ovh_user, ovh_pass[:5]))
+            if 'answer' in data:
+                if 'availability' in data['answer']:
+                    available_servers = data['answer']['availability']
+                    found_product = False
+                    for line in available_servers:
+                        if line['reference'] == ref_product:
+                            found_product = True
 
-data = ""
-available = False
-while not available:
-    success = False
-    time_start = time.time()
-    time_elapsed = 0
-    time_run_str = datetime.now().strftime("%y/%m/%d %H:%M:%S")
-    log_msg = "Requesting... "
-    print("%s | " % time_run_str + log_msg, flush=True, end=' ')
+                            found_zone = None
+                            msg_model = ""
+                            msg_zones = "zones:"
+                            zone_avails = []
+                            for zone in line['zones']:
+                                availability = zone['availability']
+                                zone_name = zone['zone']
+                                zone_avails.append(zone_name + "=" + availability)
+                                if zone_name in ref_zones:
+                                    found_zone = zone_name
+                                    success = True
+                                    available = availability not in not_available_terms
+                                    msg_model = 'The status of model "{}" in dc "{}" is {}'.format(ref_product, zone_name, availability)
+                                    log_msg += msg_model
+                                    print_and_log(msg_model)
+                                    if available:
+                                        break
+
+                            print_and_log("None of the zones was available ({})".format(", ".join(zone_avails)))
+                            if not found_zone:
+                                print_and_log("None of the data center was found for product {}.".format(', '.join(ref_zones), ref_product))
+                    if not found_product:
+                        print_and_log("No data about product {}.".format(ref_product))
+            else:
+                print_and_log("No answer in ws data.")
+        except TimeoutError:
+            print_and_log("Timeout while fetching webservice.")
+        except Exception as e:
+            print_and_log(str(type(e)) + " while parsing: " + str(e.args) + ' | ' + "Data: " + str(data))
+            with open(log_filename, mode='a') as f:
+                f.write("\n" + "-" * 60)
+                traceback.print_exc(file=f)
+                f.write("-" * 60 + "\n")
+        while time_elapsed < interval:
+            time_end = time.time()
+            time_elapsed = time_end - time_start
+            time.sleep(1)
+        msg_time = " (time: %f)" % time_elapsed
+        if success:
+            print(msg_time)
+        logging.log(logging.DEBUG, log_msg + msg_time)
+
+    print_and_log("Exited availability loop, {} is available in {}!".format(ref_product, found_zone))
+
+    driver = webdriver.Firefox()
+    driver.maximize_window()
+    available = False
+    driver.get("https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=" + ref_product)
+    # driver.get("https://eu.soyoustart.com/fr/commande/soYouStart.xml?reference=143sys2")
     try:
-        request_ws = requests.get(url_availability, timeout=(MAX_REQ_TIMEOUT_CONN, MAX_REQ_TIMEOUT_READ))
-        data = request_ws.json()
-        available_servers = data['answer']['availability']
+        assert product_family in driver.title
+        zoom_out(driver)
+        # Wait for the removal of waiting banner...
+        WebDriverWait(driver, 10).until_not(EC.presence_of_element_located(
+            (By.CSS_SELECTOR, "div.fixed-header div.alert.alert-info.ng-scope")))
+        print_and_log("Page finished loading.")
+    except AssertionError:
+        print_and_log("The page didn't load correctly: " + driver.title)
 
-        if 'answer' in data:
-            if 'availability' in data['answer']:
-                found_product = False
-                for line in available_servers:
-                    if line['reference'] == ref_product:
-                        found_product = True
+        # if driver.find_element_by_class_name("alert-error") is None:
+        #     available = True
 
-                        found_zone = False
-                        msg_model = ""
-                        msg_zones = "zones:"
-                        zone_avails = []
-                        for zone in line['zones']:
-                            availability = zone['availability']
-                            zone_name = zone['zone']
-                            zone_avails.append(zone_name + "=" + availability)
-                            if zone_name == ref_zone:
-                                found_zone = True
-                                success = True
-                                available = availability not in not_available_terms
-                                available_status = ("" if available else "not ") + "available"
-                                msg_model = 'Model %s in dc %s is marked as %s -> %s' % (
-                                    ref_product, ref_zone, availability, available_status)
-                                log_msg += msg_model
-                                if available:
-                                    print(msg_model, end="")
-                                    break
-                                print("%s (%s)" % (msg_model, ", ".join(zone_avails)), end="")
+    js_select_dhs = """var appDom = document.querySelector('#quantity-1');
+    var appNg = angular.element(appDom);
+    var scope = appNg.scope();
+    scope.config.datacenter = '""" + found_zone + """';
+    scope.$apply();
+    """
 
-                        if not found_zone:
-                            print_and_log("Zone %s was not found in data about product %s." % (ref_zone, ref_product))
-                if not found_product:
-                    print_and_log("No data about product %s." % ref_product)
-        else:
-            print_and_log("No answer in ws data.")
-    except TimeoutError:
-        print_and_log("Timeout while fetching webservice.")
-    except Exception as e:
-        print_and_log(str(type(e)) + " while parsing: " + str(e.args) + ' | ' + "Data: " + str(data))
-        with open(log_filename, mode='a') as f:
-            f.write("\n" + "-" * 60)
-            traceback.print_exc(file=f)
-            f.write("-" * 60 + "\n")
-    while time_elapsed < MIN_REQ_INTERVAL:
-        time_end = time.time()
-        time_elapsed = time_end - time_start
-        time.sleep(1)
-    msg_time = " (time: %f)" % time_elapsed
-    if success:
-        print(msg_time)
-    logging.log(logging.DEBUG, log_msg + msg_time)
+    print_and_log("Executing select script: `%s`." % js_select_dhs)
+    driver.execute_script(js_select_dhs)
+    print_and_log("Selected canadian datacenter.")
 
-print_and_log("Exited availability loop, %s is available in %s!" % (ref_product, ref_zone))
+    css_label_existing = "span.existing label"
+    css_button_login = "div.customer-existing form span.last.ec-button span button"
 
-driver = webdriver.Firefox()
-driver.maximize_window()
-available = False
-driver.get("https://www.kimsufi.com/fr/commande/kimsufi.xml?reference=" + ref_product)
-# driver.get("https://eu.soyoustart.com/fr/commande/soYouStart.xml?reference=143sys2")
-try:
-    assert page_title in driver.title
-    zoom_out(driver)
-    # Wait for the removal of waiting banner...
-    WebDriverWait(driver, 10).until_not(EC.presence_of_element_located(
-        (By.CSS_SELECTOR, "div.fixed-header div.alert.alert-info.ng-scope")))
-    print_and_log("Page finished loading.")
-except AssertionError:
-    print_and_log("The page didn't load correctly: " + driver.title)
+    id_input_login = "existing-customer-login"
+    id_input_pass = "existing-customer-password"
 
-    # if driver.find_element_by_class_name("alert-error") is None:
-    #     available = True
+    # Check existing customer
+    button_existing = driver.find_element_by_css_selector(css_label_existing)
+    print_and_log("Button found: " + str(button_existing))
+    button_existing.click()
+    print_and_log("Clicked on existing customer.")
 
-js_select_dhs = """var appDom = document.querySelector('#quantity-1');
-var appNg = angular.element(appDom);
-var scope = appNg.scope();
-scope.config.datacenter = '""" + ref_zone + """';
-scope.$apply();
-"""
+    screenshot_step(driver, screen_prefix, 1)
+    driver.execute_script("arguments[0].scrollIntoView(true);", button_existing)
+    screenshot_step(driver, screen_prefix, 2)
+    # Locate login inputs
+    input_login = driver.find_element_by_id(id_input_login)
+    input_pass = driver.find_element_by_id(id_input_pass)
 
-print_and_log("Executing select script: `%s`." % js_select_dhs)
-driver.execute_script(js_select_dhs)
-print_and_log("Selected canadian datacenter.")
+    # Connect with given credentials
+    input_login.send_keys(ovh_user)
+    input_pass.send_keys(ovh_pass)
+    print_and_log("Wrote username and password into inputs.")
+    driver.find_element_by_css_selector(css_button_login).click()
+    print_and_log("Clicked on login button.")
 
-css_label_existing = "span.existing label"
-css_button_login = "div.customer-existing form span.last.ec-button span button"
+    screenshot_step(driver, screen_prefix, 3)
 
-id_input_login = "existing-customer-login"
-id_input_pass = "existing-customer-password"
+    # Wait for means of payment to load
+    css_payment_valid = "div.payment-means-choice div.payment-means-list form span.selected input.custom-radio.ng-valid"
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located(
+        (By.CSS_SELECTOR, css_payment_valid)
+    ))
 
-# Check existing customer
-button_existing = driver.find_element_by_css_selector(css_label_existing)
-print_and_log("Button found: " + str(button_existing))
-button_existing.click()
-print_and_log("Clicked on existing customer.")
+    # Check inputs to accept contract conditions
+    css_input_cgv = "div.dedicated-contracts input#contracts-validation"
+    css_input_custom = "div.dedicated-contracts input#customConractAccepted"
+    css_button_purchase = "div.dedicated-contracts button.centered"
+    driver.find_element_by_css_selector(css_input_cgv).click()
+    driver.find_element_by_css_selector(css_input_custom).click()
+    print_and_log("Checked confirmation inputs.")
 
-screenshot_step(driver, screen_prefix, 1)
-driver.execute_script("arguments[0].scrollIntoView(true);", button_existing)
-screenshot_step(driver, screen_prefix, 2)
-# Locate login inputs
-input_login = driver.find_element_by_id(id_input_login)
-input_pass = driver.find_element_by_id(id_input_pass)
+    # uncommented after numerous tests
+    if not debug:
+        driver.find_element_by_css_selector(css_button_purchase).click()
+        print_and_log("Clicked on purchase button...")
 
-# Connect with given credentials
-input_login.send_keys(ovh_user)
-input_pass.send_keys(ovh_pass)
-print_and_log("Wrote username and password into inputs.")
-driver.find_element_by_css_selector(css_button_login).click()
-print_and_log("Clicked on login button.")
+    # Wait to realise what you've done
+    screenshot_step(driver, screen_prefix, 4)
+    time.sleep(30)
+    screenshot_step(driver, screen_prefix, 5)
+    if debug:
+        driver.close()
 
-screenshot_step(driver, screen_prefix, 3)
 
-# Wait for means of payment to load
-css_payment_valid = "div.payment-means-choice div.payment-means-list form span.selected input.custom-radio.ng-valid"
-WebDriverWait(driver, 20).until(EC.presence_of_element_located(
-    (By.CSS_SELECTOR, css_payment_valid)
-))
-
-# Check inputs to accept contract conditions
-css_input_cgv = "div.dedicated-contracts input#contracts-validation"
-css_input_custom = "div.dedicated-contracts input#customConractAccepted"
-css_button_purchase = "div.dedicated-contracts button.centered"
-driver.find_element_by_css_selector(css_input_cgv).click()
-driver.find_element_by_css_selector(css_input_custom).click()
-print_and_log("Checked confirmation inputs.")
-
-# uncommented after numerous tests
-if not DEBUG:
-    driver.find_element_by_css_selector(css_button_purchase).click()
-    print_and_log("Clicked on purchase button...")
-
-# Wait to realise what you've done
-screenshot_step(driver, screen_prefix, 4)
-time.sleep(30)
-screenshot_step(driver, screen_prefix, 5)
-if DEBUG:
-    driver.close()
+if __name__ == '__main__':
+    main()
