@@ -41,7 +41,7 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
         raise IOError('Error: It is only possible to order 1 to 5 at once. You entered "--quantity {}"'.format(quantity))
 
     # define constants
-    MAX_REQ_TIMEOUT_READ = None
+    MAX_REQ_TIMEOUT_READ = 60
     url_availability = "https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2"
     not_available_terms = ['unknown', 'unavailable']
 
@@ -207,15 +207,13 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
     ))
 
     # Check inputs to accept contract conditions
-    css_input_cgv = "div.dedicated-contracts input#contracts-validation"
-    css_input_custom = "div.dedicated-contracts input#customConractAccepted"
-    css_button_purchase = "div.dedicated-contracts button.centered"
-    driver.find_element_by_css_selector(css_input_cgv).click()
-    driver.find_element_by_css_selector(css_input_custom).click()
+    driver.find_element_by_id("contracts-validation").click()
+    driver.find_element_by_id("customConractAccepted").click()
     print_and_log("Checked confirmation inputs.")
 
     # uncommented after numerous tests
     if not debug:
+        css_button_purchase = ".zone-content section:last button.centered"
         driver.find_element_by_css_selector(css_button_purchase).click()
         print_and_log("Clicked on purchase button...")
 
@@ -223,8 +221,7 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
     screenshot_step(driver, screen_prefix, 4)
     time.sleep(30)
     screenshot_step(driver, screen_prefix, 5)
-    if debug:
-        driver.close()
+    driver.close()
 
 
 if __name__ == '__main__':
