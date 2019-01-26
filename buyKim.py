@@ -45,22 +45,22 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
     url_availability = "https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2"
     not_available_terms = ['unknown', 'unavailable']
 
-    time_run = datetime.now().strftime("%y-%m-%d %H-%M-%f")
-
-    screenshot_dir = os.getenv("SCREENSHOT_DIR", os.path.abspath("screens"))
-    log_dir = os.getenv("LOG_DIR", os.getcwd())
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    # Get env var if any, or the script directory as a fallback
+    # Then in any case the "screens" folder to the path.
+    screenshot_dir = os.path.join(os.getenv("SCREENSHOT_DIR", script_dir), "screens")
     if not os.path.exists(screenshot_dir):
         os.makedirs(screenshot_dir)
+    print("Saving screenshots in {}".format(screenshot_dir))
+
+    # Logs configuration
+    log_dir = os.getenv("LOG_DIR", script_dir)
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     log_filename = os.path.join(log_dir, "buyKim.log")
-
     print("Log filename: {}".format(log_filename))
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', filename=log_filename, level=logging.DEBUG)
     logging.getLogger("requests").setLevel(logging.WARNING)
-
-    print_and_log("Saving screenshots in {}".format(screenshot_dir))
-    screen_prefix = screenshot_dir + time_run
 
     available = False
     while not available:
@@ -184,9 +184,9 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
     button_existing.click()
     print_and_log("Clicked on existing customer.")
 
-    screenshot_step(driver, screen_prefix, 1)
+    screenshot_step(driver, screenshot_dir, 1)
     driver.execute_script("arguments[0].scrollIntoView(true);", button_existing)
-    screenshot_step(driver, screen_prefix, 2)
+    screenshot_step(driver, screenshot_dir, 2)
     # Locate login inputs
     input_login = driver.find_element_by_id(id_input_login)
     input_pass = driver.find_element_by_id(id_input_pass)
@@ -198,7 +198,7 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
     driver.find_element_by_css_selector(css_button_login).click()
     print_and_log("Clicked on login button.")
 
-    screenshot_step(driver, screen_prefix, 3)
+    screenshot_step(driver, screenshot_dir, 3)
 
     # Wait for means of payment to load
     css_payment_valid = "div.payment-means-choice div.payment-means-list form span.selected input.custom-radio.ng-valid"
@@ -213,14 +213,14 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
 
     # uncommented after numerous tests
     if not debug:
-        css_button_purchase = ".zone-content section:last button.centered"
+        css_button_purchase = "div.zone-content div.dedicated-contracts button.centered"
         driver.find_element_by_css_selector(css_button_purchase).click()
         print_and_log("Clicked on purchase button...")
 
     # Wait to realise what you've done
-    screenshot_step(driver, screen_prefix, 4)
+    screenshot_step(driver, screenshot_dir, 4)
     time.sleep(30)
-    screenshot_step(driver, screen_prefix, 5)
+    screenshot_step(driver, screenshot_dir, 5)
     driver.close()
 
 

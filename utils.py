@@ -1,3 +1,6 @@
+import os
+from datetime import datetime
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
@@ -11,8 +14,9 @@ def zoom_out(driver):
     html.send_keys(Keys.CONTROL, '-')
 
 
-def screenshot_step(driver, screen_prefix, step_number):
-    step_filename = screen_prefix + " - step%d.png" % step_number
-    retval = driver.save_screenshot(step_filename)
-    print("Saving screenshot %d as %s..." % (step_number, step_filename),
+def screenshot_step(driver, screen_path, step_number):
+    file_name = "{:%Y-%m-%d-%H-%M-%S}-step{}.png".format(datetime.now(), step_number)
+    screenshot_full_path = os.path.realpath(os.path.join(screen_path, file_name))
+    retval = driver.save_screenshot(screenshot_full_path)
+    print("Saving screenshot {} as {}...".format(step_number, screenshot_full_path),
           "Success" if retval else "Error")

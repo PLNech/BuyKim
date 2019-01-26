@@ -3,3 +3,4 @@
 __pycache__
 examples
 *.log
+.DS_Store

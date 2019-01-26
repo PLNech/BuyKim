@@ -13,6 +13,8 @@ wasting your precious time waiting!
 
 # Usage
 
+*Requires python 3*
+
 - Install requirements: `pip install -r requirements.txt`
 
 - One of the dependency is `Selenium` that depends on drivers: https://github.com/SeleniumHQ/selenium/blob/master/py/docs/source/index.rst#user-content-drivers.
