@@ -28,8 +28,8 @@ def print_and_log(message, level=logging.INFO, sep=' ', end='\n', flush=False):
 @click.option('--ref-zones', '-z', default=["gra","rbx","lon","fra"], show_default=True, multiple=True, help='Data center short name(s) (ie "-z gra -z rbx")')
 @click.option('--quantity', '-q', default=1, show_default=True, help='Number of servers to rent - 1 to 5 (Maximum)')
 @click.option('--payment-frequency', '-f', default=1, show_default=True, help='Receive the bill every 1,3,6 or 12 month')
-@click.option('--ovh-user', prompt=True, hide_input=False)
-@click.option('--ovh-pass', prompt=True, hide_input=True)
+@click.option('--ovh-user', default=lambda: os.environ.get('OVH_USERNAME', ''), show_default='OVH_USERNAME', prompt=True, hide_input=False)
+@click.option('--ovh-pass', default=lambda: os.environ.get('OVH_PASSWORD', ''), show_default='OVH_PASSWORD', prompt=True, hide_input=True)
 @click.option('--debug/--no-debug', default=False, help='Debug mode, disable by default. Add --debug flag to enable')
 def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantity, payment_frequency, ovh_user, ovh_pass, debug):
 
@@ -42,7 +42,7 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
 
     # define constants
     MAX_REQ_TIMEOUT_READ = 60
-    url_availability = "https://ws.ovh.com/dedicated/r2/ws.dispatcher/getAvailability2"
+    url_availability = "https://www.kimsufi.com/fr/js/dedicatedAvailability/availability-data-ca.json"
     not_available_terms = ['unknown', 'unavailable']
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -51,14 +51,14 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
     screenshot_dir = os.path.join(os.getenv("SCREENSHOT_DIR", script_dir), "screens")
     if not os.path.exists(screenshot_dir):
         os.makedirs(screenshot_dir)
-    print("Saving screenshots in {}".format(screenshot_dir))
+    print_and_log("Saving screenshots in {}".format(screenshot_dir))
 
     # Logs configuration
     log_dir = os.getenv("LOG_DIR", script_dir)
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     log_filename = os.path.join(log_dir, "buyKim.log")
-    print("Log filename: {}".format(log_filename))
+    print_and_log("Log filename: {}".format(log_filename))
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', filename=log_filename, level=logging.DEBUG)
     logging.getLogger("requests").setLevel(logging.WARNING)
 
@@ -74,9 +74,9 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
             request_ws = requests.get(url_availability, timeout=(timeout_conn, MAX_REQ_TIMEOUT_READ))
             data = request_ws.json()
 
-            if 'answer' in data:
-                if 'availability' in data['answer']:
-                    available_servers = data['answer']['availability']
+            if data:
+                if 'availability' in data:
+                    available_servers = data['availability']
                     found_product = False
                     for line in available_servers:
                         if line['reference'] == ref_product:
@@ -100,7 +100,6 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
                                     if available:
                                         break
 
-                            print_and_log("None of the zones was available ({})".format(", ".join(zone_avails)))
                             if not found_zone:
                                 print_and_log("None of the data center was found for product {}.".format(', '.join(ref_zones), ref_product))
                     if not found_product:
@@ -121,7 +120,7 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
             time.sleep(1)
         msg_time = " (time: %f)" % time_elapsed
         if success:
-            print(msg_time)
+            print_and_log(msg_time)
         logging.log(logging.DEBUG, log_msg + msg_time)
 
     print_and_log("Exited availability loop, {} is available in {}!".format(ref_product, found_zone))
@@ -156,6 +155,13 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
     """.format(js_select_dhs))
     driver.execute_script(js_select_dhs)
     print_and_log("Selected {} datacenter.".format(found_zone))
+
+    # pass cookie popup...
+    try:
+        driver.find_element_by_id('header_tc_privacy_button').click()
+        print_and_log("Passed the cookie popup window.".format(quantity))
+    except e:
+        pass
 
     # Select quantity and payment options
     selecor_quantity_line = driver.find_element_by_css_selector('tbody.configuration tr:nth-child(2)')
@@ -201,26 +207,31 @@ def main(timeout_conn, interval, product_family, ref_product, ref_zones, quantit
     screenshot_step(driver, screenshot_dir, 3)
 
     # Wait for means of payment to load
-    css_payment_valid = "div.payment-means-choice div.payment-means-list form span.selected input.custom-radio.ng-valid"
-    WebDriverWait(driver, 20).until(EC.presence_of_element_located(
-        (By.CSS_SELECTOR, css_payment_valid)
-    ))
+    WebDriverWait(driver, 20).until(
+        EC.element_to_be_clickable((By.ID, "customConractAccepted"))
+    )
 
     # Check inputs to accept contract conditions
     driver.find_element_by_id("contracts-validation").click()
     driver.find_element_by_id("customConractAccepted").click()
     print_and_log("Checked confirmation inputs.")
+    screenshot_step(driver, screenshot_dir, 4)
+
+    selecor_payment_means = driver.find_element_by_css_selector('div.payment-means form span span.first:nth-child(1) label').click()
+    print_and_log("Checked confirmation inputs.")
+    screenshot_step(driver, screenshot_dir, 5)
 
     # uncommented after numerous tests
     if not debug:
         css_button_purchase = "div.zone-content div.dedicated-contracts button.centered"
         driver.find_element_by_css_selector(css_button_purchase).click()
         print_and_log("Clicked on purchase button...")
+    else:
+        print_and_log("Not clicking the purchase button because '--debug' flag was passed.")
 
     # Wait to realise what you've done
-    screenshot_step(driver, screenshot_dir, 4)
-    time.sleep(30)
-    screenshot_step(driver, screenshot_dir, 5)
+    time.sleep(15)
+    screenshot_step(driver, screenshot_dir, 6)
     driver.close()
 
 
